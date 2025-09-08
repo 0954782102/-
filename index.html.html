@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <title>Правила ППВЧ</title>
+  <style>
+    body { font-family: Arial, sans-serif; background:#0f172a; color:white; margin:0; padding:20px; }
+    h1 { text-align:center; margin-bottom:10px; }
+    #schedule { background:#1e293b; border:1px solid #334155; border-radius:12px; padding:15px; margin:15px auto 25px; max-width:600px; text-align:center; }
+    #schedule h2 { margin-top:0; margin-bottom:10px; font-size:18px; }
+    .allowed { color:#4ade80; font-weight:bold; }
+    .forbidden { color:#f87171; font-weight:bold; }
+    #controls { display:flex; gap:10px; justify-content:center; margin-bottom:20px; }
+    input { padding:10px; width:300px; border-radius:8px; border:1px solid #475569; background:#1e293b; color:white; }
+    button { padding:10px 14px; border:none; border-radius:8px; cursor:pointer; background:#334155; color:white; }
+    button:hover { background:#475569; }
+    #stats { text-align:center; margin-bottom:10px; font-weight:bold; }
+    .card { background:#1e293b; border:1px solid #334155; border-radius:12px; padding:15px; margin-bottom:15px; }
+    .card h3 { margin:0 0 8px; }
+    .punishment { color:#f87171; font-weight:bold; margin-top:8px; }
+    .notes { color:#94a3b8; font-size:13px; margin-top:5px; }
+  </style>
+</head>
+<body>
+  <h1>Правила ППВЧ</h1>
+
+  <div id="schedule">
+    <h2>🕒 Графік нападів</h2>
+    <p class="allowed">🟢 Дозволено: 12:00–14:00, 16:00–18:00, 20:00–23:00</p>
+    <p class="forbidden">🔴 Заборонено: 14:00–16:00, 18:00–20:00, 23:00–12:00</p>
+  </div>
+
+  <div id="controls">
+    <input type="text" id="q" placeholder="Пошук за ключовими словами...">
+    <button id="clearBtn">Очистити</button>
+    <button id="showAllBtn">Показати всі</button>
+  </div>
+  <div id="stats"></div>
+  <div id="results"></div>
+
+  <script>
+    const RULES = [
+      { code: "1.1", title: "Вбивство біля бази", text: "Біля військової бази заборонено вбивати військових без провокації (RP-діалогу), всередині бази вбивство дозволене.", punishment: "Jail 10-20 хвилин", aliases:["вбивство","база","rp"] },
+      { code: "1.2", title: "Ціль нападу", text: "Ціль нападу — якомога швидше вкрасти, завантажити боєприпаси та покинути територію. Заборонено бігати заради розваг або без причини вбивати військових.", punishment: "Jail 20 хвилин", aliases:["боєприпаси","напад"] },
+      { code: "1.3", title: "15 хв після смерті", text: "Заборонено нападати на базу протягом 15 хвилин після смерті на ній.", punishment: "Jail 20 хвилин", aliases:["респавн","таймер"] },
+      { code: "1.4", title: "СК на базі", text: "Заборонено СК на території бази. Виняток: вбивство лише військового, який вас спровокував. Примітка: військовим заборонено провокувати на СК.", punishment: "Jail 30 хвилин", aliases:["ск","самп кілл"] },
+      { code: "1.5", title: "Маска і зброя", text: "Заборонено нападати без маски та вогнепальної зброї.", punishment: "Jail 10-20 хвилин", aliases:["маска","зброя"] },
+      { code: "1.6", title: "AFK", text: "Заборонено стояти в AFK понад 1 хвилину.", punishment: "Jail 10 хвилин + Kick", aliases:["afk"] },
+      { code: "1.7", title: "Збивання анімацій", text: "Заборонено збивати анімації.", punishment: "Jail 60 хвилин", aliases:["анімації"] },
+      { code: "1.8", title: "Хіл під час бою", text: "Заборонено відновлювати здоров’я під час перестрілки.", punishment: "Jail 30 хвилин", aliases:["хіл","перестрілка"] },
+      { code: "1.9", title: "Хіл у русі", text: "Заборонено використовувати засоби поповнення здоров’я під час руху.", punishment: "Jail 30 хвилин", aliases:["хіл","рух"] },
+      { code: "1.10", title: "НС ігнор ПГ/РК", text: "Військовим дозволено ігнорувати ПГ та РК під час НС на своїй базі.", punishment: "", aliases:["пг","рк","нс"] },
+      { code: "1.11", title: "Мінімум 4 особи", text: "Заборонено нападати на базу, якщо вас менше ніж 4 особи. Якщо вас залишилось менше 3-х — негайно покиньте територію.", punishment: "Jail 20 хвилин", aliases:["онлайн","мінімум"] },
+      { code: "1.12", title: "Час нападів", text: "Час дозволених нападів: 12:00–14:00, 16:00–18:00, 20:00–23:00. Заборонено: 14:00–16:00, 18:00–20:00, 23:00–12:00.", punishment: "Jail 30 хвилин", aliases:["час","напади"] },
+      { code: "1.13", title: "Ранг сім’ї", text: "Напад дозволено лише гравцям із 2-м рангом у сім’ї.", punishment: "Jail 10 хвилин", aliases:["ранг"] },
+      { code: "1.14", title: "Цивільні/держ", text: "Заборонено нападати, якщо ви цивільний або державний співробітник.", punishment: "", aliases:["цивільний","держ"] },
+      { code: "1.15", title: "Вихід з гри", text: "Заборонено виходити з гри після отримання матеріалів.", punishment: "Jail 120 хвилин", aliases:["вихід","матеріали"] },
+      { code: "1.16", title: "Особистий транспорт", text: "Заборонено використовувати особистий транспорт під час нападу.", punishment: "Jail 10 хвилин", aliases:["транспорт"] },
+      { code: "1.17", title: "Маска 60 сек", text: "Заборонено перебувати без маски понад 60 секунд.", punishment: "Jail 20 хвилин", aliases:["маска"] },
+      { code: "1.18", title: "Гвинтокрил", text: "Дозволено прилітати на військову частину на гвинтокрилі. (Тимчасово неактуально)", punishment: "", aliases:["гвинтокрил"] },
+      { code: "1.19", title: "Баги і недопрацювання", text: "Заборонено використовувати баги, недопрацювання мода чи несправності гри.", punishment: "Jail 120 хвилин", aliases:["баг","недопрацювання"] },
+      { code: "1.20", title: "Війна сімей", text: "Заборонено нападати та співпрацювати між сім’ями, якщо між ними війна. Але дозволено вбивати гравців ворожої сім’ї на ВЧ.", punishment: "Jail 30 хвилин", aliases:["війна","сім’ї"] },
+      { code: "1.21", title: "Будь-яка зброя", text: "Дозволено використовувати будь-який тип зброї при нападі.", punishment: "", aliases:["зброя"] },
+      { code: "1.22", title: "Поява після виходу", text: "Заборонено з’являтись на території військової бази після виходу з гри.", punishment: "Jail 20 хвилин", aliases:["вихід"] },
+      { code: "1.23", title: "Анімації в текстурах", text: "Заборонено використовувати анімації для сховку персонажа в текстурах.", punishment: "Jail 20 хвилин", aliases:["анімації","текстури"] },
+      { code: "1.24", title: "Загальні правила сервера", text: "Заборонено порушувати будь-які правила сервера під час нападу.", punishment: "Jail / Warn / Ban залежно від порушення", aliases:["правила","сервер"] },
+    ];
+
+    const qInput = document.getElementById("q");
+    const resultsEl = document.getElementById("results");
+    const statsEl = document.getElementById("stats");
+    const clearBtn = document.getElementById("clearBtn");
+    const showAllBtn = document.getElementById("showAllBtn");
+
+    function renderResults(items) {
+      resultsEl.innerHTML = "";
+      if (!items.length) {
+        statsEl.textContent = "Нічого не знайдено 🙈";
+        return;
+      }
+      statsEl.textContent = `Знайдено: ${items.length}`;
+      items.forEach(rule => {
+        const card = document.createElement("div");
+        card.className = "card";
+        card.innerHTML = `<h3>${rule.code} — ${rule.title}</h3>
+                          <p>${rule.text}</p>
+                          ${rule.punishment ? `<p class='punishment'>⛔ Покарання: ${rule.punishment}</p>` : ""}
+                          ${rule.notes ? `<p class='notes'>${rule.notes}</p>` : ""}`;
+        resultsEl.appendChild(card);
+      });
+    }
+
+    function searchRules(query) {
+      query = query.trim().toLowerCase();
+      if (!query) { statsEl.textContent = ""; resultsEl.innerHTML = ""; return; }
+      const found = RULES.filter(rule =>
+        rule.code.toLowerCase().includes(query) ||
+        rule.title.toLowerCase().includes(query) ||
+        rule.text.toLowerCase().includes(query) ||
+        rule.aliases.some(a => a.toLowerCase().includes(query))
+      );
+      renderResults(found);
+    }
+
+    qInput.addEventListener("input", () => searchRules(qInput.value));
+    clearBtn.addEventListener("click", () => { qInput.value = ""; resultsEl.innerHTML = ""; statsEl.textContent = ""; qInput.focus(); });
+    showAllBtn.addEventListener("click", () => renderResults(RULES));
+  </script>
+</body>
+</html>
